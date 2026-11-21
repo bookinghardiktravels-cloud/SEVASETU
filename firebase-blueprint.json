@@ -1,0 +1,111 @@
+{
+  "entities": {
+    "UserAccount": {
+      "title": "UserAccount",
+      "description": "Private user account, KYC verification (PAN/Voter ID), and Drive backup metadata.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID of the user." },
+        "displayName": { "type": "string", "description": "Full display name of the user." },
+        "email": { "type": "string", "description": "Google account email address (private)." },
+        "activeRole": { "type": "string", "enum": ["customer", "provider"], "description": "Current active app role." },
+        "govIdType": { "type": "string", "enum": ["PAN", "VOTER_ID"], "description": "Government ID document type." },
+        "govIdMasked": { "type": "string", "description": "Masked PAN or Voter ID identifier." },
+        "govIdVerified": { "type": "boolean", "description": "Whether government ID format and document verification succeeded." },
+        "govIdPhotoBase64": { "type": "string", "description": "Optional compressed thumbnail of uploaded ID card." },
+        "areaName": { "type": "string", "description": "User city or neighborhood name." },
+        "latitude": { "type": "number", "description": "User latitude coordinate." },
+        "longitude": { "type": "number", "description": "User longitude coordinate." },
+        "lastBackupAt": { "type": "string", "format": "date-time", "description": "Timestamp of last Drive/JSON backup (serverTimestamp)." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Account creation timestamp (FieldValue.serverTimestamp())." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last profile update timestamp (FieldValue.serverTimestamp())." }
+      },
+      "required": ["userId", "displayName", "activeRole", "govIdType", "govIdMasked", "govIdVerified", "areaName", "latitude", "longitude", "createdAt", "updatedAt"]
+    },
+    "ServiceProvider": {
+      "title": "ServiceProvider",
+      "description": "Public service provider listing with trade category, experience, rate, location, work photos, and availability.",
+      "type": "object",
+      "properties": {
+        "providerId": { "type": "string", "description": "Provider Firebase Auth UID." },
+        "displayName": { "type": "string", "description": "Provider business or artisan name." },
+        "category": { "type": "string", "description": "Service trade category key." },
+        "experienceYears": { "type": "integer", "description": "Years of field experience." },
+        "rateInr": { "type": "integer", "description": "Base service visit charge in INR (Cash on Delivery)." },
+        "areaName": { "type": "string", "description": "Service area or city name." },
+        "latitude": { "type": "number", "description": "Provider service latitude." },
+        "longitude": { "type": "number", "description": "Provider service longitude." },
+        "isOnline": { "type": "boolean", "description": "Live availability toggle." },
+        "isListed": { "type": "boolean", "description": "Whether provider is listed in public directory." },
+        "govIdVerified": { "type": "boolean", "description": "Verified government ID badge." },
+        "govIdType": { "type": "string", "enum": ["PAN", "VOTER_ID"], "description": "Verified government ID type label." },
+        "bio": { "type": "string", "description": "Short work summary." },
+        "workPhotos": { "type": "array", "description": "Up to 4 compressed portfolio work photos." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp (FieldValue.serverTimestamp())." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Update timestamp (FieldValue.serverTimestamp())." }
+      },
+      "required": ["providerId", "displayName", "category", "experienceYears", "rateInr", "areaName", "latitude", "longitude", "isOnline", "isListed", "govIdVerified", "govIdType", "bio", "workPhotos", "createdAt", "updatedAt"]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "Service booking between a customer and service provider with Cash on Delivery payment and completion review.",
+      "type": "object",
+      "properties": {
+        "customerId": { "type": "string", "description": "Customer Firebase Auth UID." },
+        "customerName": { "type": "string", "description": "Customer display name." },
+        "providerId": { "type": "string", "description": "Provider Firebase Auth UID." },
+        "providerName": { "type": "string", "description": "Provider display name." },
+        "serviceCategory": { "type": "string", "description": "Trade category key." },
+        "serviceAddress": { "type": "string", "description": "Service visit neighborhood/address." },
+        "scheduledSlot": { "type": "string", "description": "Requested date and time window." },
+        "issueNotes": { "type": "string", "description": "Problem description from customer." },
+        "amountInr": { "type": "integer", "description": "Agreed visit/service fee in INR." },
+        "paymentMethod": { "type": "string", "enum": ["COD"], "description": "Payment mode strictly Cash on Delivery." },
+        "cashCollected": { "type": "boolean", "description": "Whether provider collected cash on completion." },
+        "status": { "type": "string", "enum": ["pending", "accepted", "in_progress", "completed", "cancelled", "rejected"], "description": "Booking lifecycle status." },
+        "reviewed": { "type": "boolean", "description": "Whether customer has submitted post-completion review." },
+        "rating": { "type": "integer", "description": "1 to 5 star rating." },
+        "reviewText": { "type": "string", "description": "Customer review comment." },
+        "completionPhotoBase64": { "type": "string", "description": "Compressed completion photo thumbnail." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp (FieldValue.serverTimestamp())." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Update timestamp (FieldValue.serverTimestamp())." }
+      },
+      "required": ["customerId", "customerName", "providerId", "providerName", "serviceCategory", "serviceAddress", "scheduledSlot", "issueNotes", "amountInr", "paymentMethod", "cashCollected", "status", "reviewed", "createdAt", "updatedAt"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Verified post-completion customer review and photo linked to a completed booking.",
+      "type": "object",
+      "properties": {
+        "bookingId": { "type": "string", "description": "Completed booking document ID." },
+        "providerId": { "type": "string", "description": "Reviewed provider UID." },
+        "customerId": { "type": "string", "description": "Author customer UID." },
+        "customerName": { "type": "string", "description": "Customer display name." },
+        "rating": { "type": "integer", "description": "Star rating from 1 to 5." },
+        "comment": { "type": "string", "description": "Written feedback." },
+        "photoBase64": { "type": "string", "description": "Optional compressed completion photo." },
+        "isPublic": { "type": "boolean", "description": "Visibility flag for marketplace listing." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp (FieldValue.serverTimestamp())." }
+      },
+      "required": ["bookingId", "providerId", "customerId", "customerName", "rating", "comment", "isPublic", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserAccount" },
+      "description": "Private user profile, PAN/Voter ID verification state, and backup timestamp."
+    },
+    "/providers/{providerId}": {
+      "schema": { "$ref": "#/entities/ServiceProvider" },
+      "description": "Public verified service provider directory and availability status."
+    },
+    "/bookings/{bookingId}": {
+      "schema": { "$ref": "#/entities/Booking" },
+      "description": "Active and historical Cash on Delivery service bookings."
+    },
+    "/reviews/{reviewId}": {
+      "schema": { "$ref": "#/entities/Review" },
+      "description": "Verified post-completion ratings, comments, and completion photos."
+    }
+  }
+}

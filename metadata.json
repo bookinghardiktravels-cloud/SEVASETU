@@ -1,0 +1,6 @@
+{
+  "name": "SevaSetu",
+  "description": "Customer and Service Provider marketplace with PAN/Voter ID verification, location-based service listings, COD bookings, completion reviews, and Drive backup.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

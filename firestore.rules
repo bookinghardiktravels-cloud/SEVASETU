@@ -1,0 +1,303 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helper Primitives ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidRole(role) {
+      return role in ['customer', 'provider'];
+    }
+
+    function isValidGovIdType(idType) {
+      return idType in ['PAN', 'VOTER_ID'];
+    }
+
+    function isValidCategory(category) {
+      return category in [
+        'electrician', 'plumber', 'carpenter', 'ac_repair', 'cleaning',
+        'painter', 'mechanic', 'gardener', 'tailor', 'pest_control'
+      ];
+    }
+
+    function isValidBookingStatus(status) {
+      return status in ['pending', 'accepted', 'in_progress', 'completed', 'cancelled', 'rejected'];
+    }
+
+    // --- Entity Validation Helpers ---
+    function isValidUserAccount(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
+             (!('email' in data) || data.email == null || (data.email is string && data.email.size() <= 120)) &&
+             isValidRole(data.activeRole) &&
+             isValidGovIdType(data.govIdType) &&
+             data.govIdMasked is string && data.govIdMasked.size() >= 4 && data.govIdMasked.size() <= 24 &&
+             data.govIdVerified is bool &&
+             (!('govIdPhotoBase64' in data) || data.govIdPhotoBase64 == null || (data.govIdPhotoBase64 is string && data.govIdPhotoBase64.size() <= 120000)) &&
+             data.areaName is string && data.areaName.size() >= 1 && data.areaName.size() <= 80 &&
+             data.latitude is number && data.latitude >= -90.0 && data.latitude <= 90.0 &&
+             data.longitude is number && data.longitude >= -180.0 && data.longitude <= 180.0 &&
+             (!('lastBackupAt' in data) || data.lastBackupAt == null || (data.lastBackupAt is timestamp && data.lastBackupAt <= request.time)) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidServiceProvider(data) {
+      return data.providerId is string && data.providerId.size() >= 1 && data.providerId.size() <= 128 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
+             isValidCategory(data.category) &&
+             data.experienceYears is int && data.experienceYears >= 0 && data.experienceYears <= 60 &&
+             data.rateInr is int && data.rateInr >= 50 && data.rateInr <= 100000 &&
+             data.areaName is string && data.areaName.size() >= 1 && data.areaName.size() <= 80 &&
+             data.latitude is number && data.latitude >= -90.0 && data.latitude <= 90.0 &&
+             data.longitude is number && data.longitude >= -180.0 && data.longitude <= 180.0 &&
+             data.isOnline is bool &&
+             data.isListed is bool &&
+             data.govIdVerified is bool &&
+             isValidGovIdType(data.govIdType) &&
+             data.bio is string && data.bio.size() <= 400 &&
+             data.workPhotos is list && data.workPhotos.size() <= 4 &&
+             (data.workPhotos.size() == 0 || (data.workPhotos[0] is string && data.workPhotos[0].size() <= 100000)) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidBooking(data) {
+      return data.customerId is string && data.customerId.size() >= 1 && data.customerId.size() <= 128 &&
+             data.customerName is string && data.customerName.size() >= 1 && data.customerName.size() <= 80 &&
+             data.providerId is string && data.providerId.size() >= 1 && data.providerId.size() <= 128 &&
+             data.providerName is string && data.providerName.size() >= 1 && data.providerName.size() <= 80 &&
+             isValidCategory(data.serviceCategory) &&
+             data.serviceAddress is string && data.serviceAddress.size() >= 2 && data.serviceAddress.size() <= 200 &&
+             data.scheduledSlot is string && data.scheduledSlot.size() >= 2 && data.scheduledSlot.size() <= 80 &&
+             data.issueNotes is string && data.issueNotes.size() <= 400 &&
+             data.amountInr is int && data.amountInr >= 50 && data.amountInr <= 100000 &&
+             data.paymentMethod == 'COD' &&
+             data.cashCollected is bool &&
+             isValidBookingStatus(data.status) &&
+             data.reviewed is bool &&
+             (!('rating' in data) || data.rating == null || (data.rating is int && data.rating >= 1 && data.rating <= 5)) &&
+             (!('reviewText' in data) || data.reviewText == null || (data.reviewText is string && data.reviewText.size() <= 500)) &&
+             (!('completionPhotoBase64' in data) || data.completionPhotoBase64 == null || (data.completionPhotoBase64 is string && data.completionPhotoBase64.size() <= 100000)) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidReview(data) {
+      return data.bookingId is string && data.bookingId.size() >= 1 && data.bookingId.size() <= 128 &&
+             data.providerId is string && data.providerId.size() >= 1 && data.providerId.size() <= 128 &&
+             data.customerId is string && data.customerId.size() >= 1 && data.customerId.size() <= 128 &&
+             data.customerName is string && data.customerName.size() >= 1 && data.customerName.size() <= 80 &&
+             data.rating is int && data.rating >= 1 && data.rating <= 5 &&
+             data.comment is string && data.comment.size() <= 500 &&
+             (!('photoBase64' in data) || data.photoBase64 == null || (data.photoBase64 is string && data.photoBase64.size() <= 100000)) &&
+             data.isPublic == true &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    // --- 1. Private User Accounts & KYC Data ---
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+      allow list: if false;
+
+      allow create: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll([
+                         'userId', 'displayName', 'activeRole', 'govIdType', 'govIdMasked',
+                         'govIdVerified', 'areaName', 'latitude', 'longitude', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'displayName', 'email', 'activeRole', 'govIdType', 'govIdMasked',
+                         'govIdVerified', 'govIdPhotoBase64', 'areaName', 'latitude', 'longitude',
+                         'lastBackupAt', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidUserAccount(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       isValidUserAccount(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'displayName', 'email', 'activeRole', 'govIdType', 'govIdMasked',
+                           'govIdVerified', 'govIdPhotoBase64', 'areaName', 'latitude', 'longitude',
+                           'lastBackupAt', 'updatedAt'
+                         ])
+                       );
+
+      allow delete: if false;
+    }
+
+    // --- 2. Public Verified Service Provider Directory ---
+    match /providers/{providerId} {
+      allow get: if isSignedIn() && isValidId(providerId) && (request.auth.uid == providerId || existing().isListed == true);
+      allow list: if isSignedIn() && existing().isListed == true;
+
+      allow create: if isSignedIn() &&
+                       isValidId(providerId) &&
+                       request.auth.uid == providerId &&
+                       incoming().providerId == request.auth.uid &&
+                       incoming().isListed == true &&
+                       incoming().govIdVerified == true &&
+                       incoming().keys().hasAll([
+                         'providerId', 'displayName', 'category', 'experienceYears', 'rateInr',
+                         'areaName', 'latitude', 'longitude', 'isOnline', 'isListed',
+                         'govIdVerified', 'govIdType', 'bio', 'workPhotos', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'providerId', 'displayName', 'category', 'experienceYears', 'rateInr',
+                         'areaName', 'latitude', 'longitude', 'isOnline', 'isListed',
+                         'govIdVerified', 'govIdType', 'bio', 'workPhotos', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidServiceProvider(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(providerId) &&
+                       request.auth.uid == providerId &&
+                       isValidServiceProvider(incoming()) &&
+                       incoming().providerId == existing().providerId &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         // Action 1: Toggle availability On/Off
+                         incoming().diff(existing()).affectedKeys().hasOnly(['isOnline', 'updatedAt']) ||
+                         // Action 2: Update artisan profile & work photos
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'displayName', 'category', 'experienceYears', 'rateInr',
+                           'areaName', 'latitude', 'longitude', 'isOnline', 'isListed',
+                           'govIdVerified', 'govIdType', 'bio', 'workPhotos', 'updatedAt'
+                         ])
+                       );
+
+      allow delete: if false;
+    }
+
+    // --- 3. Customer <-> Provider COD Bookings ---
+    match /bookings/{bookingId} {
+      allow get: if isSignedIn() && isValidId(bookingId) &&
+                    (existing().customerId == request.auth.uid || existing().providerId == request.auth.uid);
+      allow list: if isSignedIn() &&
+                    (existing().customerId == request.auth.uid || existing().providerId == request.auth.uid);
+
+      allow create: if isSignedIn() &&
+                       isValidId(bookingId) &&
+                       incoming().customerId == request.auth.uid &&
+                       incoming().providerId != request.auth.uid &&
+                       incoming().status == 'pending' &&
+                       incoming().paymentMethod == 'COD' &&
+                       incoming().cashCollected == false &&
+                       incoming().reviewed == false &&
+                       incoming().keys().hasAll([
+                         'customerId', 'customerName', 'providerId', 'providerName',
+                         'serviceCategory', 'serviceAddress', 'scheduledSlot', 'issueNotes',
+                         'amountInr', 'paymentMethod', 'cashCollected', 'status', 'reviewed',
+                         'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'customerId', 'customerName', 'providerId', 'providerName',
+                         'serviceCategory', 'serviceAddress', 'scheduledSlot', 'issueNotes',
+                         'amountInr', 'paymentMethod', 'cashCollected', 'status', 'reviewed',
+                         'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidBooking(incoming()) &&
+                       exists(/databases/$(database)/documents/providers/$(incoming().providerId));
+
+      allow update: if isSignedIn() &&
+                       isValidId(bookingId) &&
+                       isValidBooking(incoming()) &&
+                       incoming().customerId == existing().customerId &&
+                       incoming().customerName == existing().customerName &&
+                       incoming().providerId == existing().providerId &&
+                       incoming().providerName == existing().providerName &&
+                       incoming().serviceCategory == existing().serviceCategory &&
+                       incoming().paymentMethod == existing().paymentMethod &&
+                       incoming().amountInr == existing().amountInr &&
+                       incoming().createdAt == existing().createdAt &&
+                       !(existing().status in ['cancelled', 'rejected']) &&
+                       !(existing().status == 'completed' && existing().reviewed == true) &&
+                       (
+                         // Action 1: Provider accepts or rejects pending booking
+                         (request.auth.uid == existing().providerId &&
+                          existing().status == 'pending' &&
+                          incoming().status in ['accepted', 'rejected'] &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])) ||
+                         // Action 2: Provider starts accepted job
+                         (request.auth.uid == existing().providerId &&
+                          existing().status == 'accepted' &&
+                          incoming().status == 'in_progress' &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])) ||
+                         // Action 3: Provider completes job and collects Cash on Delivery
+                         (request.auth.uid == existing().providerId &&
+                          existing().status in ['accepted', 'in_progress'] &&
+                          incoming().status == 'completed' &&
+                          incoming().cashCollected == true &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'cashCollected', 'updatedAt'])) ||
+                         // Action 4: Customer cancels pending or accepted booking
+                         (request.auth.uid == existing().customerId &&
+                          existing().status in ['pending', 'accepted'] &&
+                          incoming().status == 'cancelled' &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])) ||
+                         // Action 5: Customer submits completion photo & review once after completion
+                         (request.auth.uid == existing().customerId &&
+                          existing().status == 'completed' &&
+                          existing().reviewed == false &&
+                          incoming().reviewed == true &&
+                          incoming().rating is int && incoming().rating >= 1 && incoming().rating <= 5 &&
+                          incoming().diff(existing()).affectedKeys().hasOnly([
+                            'reviewed', 'rating', 'reviewText', 'completionPhotoBase64', 'updatedAt'
+                          ]))
+                       );
+
+      allow delete: if false;
+    }
+
+    // --- 4. Verified Post-Completion Reviews ---
+    match /reviews/{reviewId} {
+      allow get: if isSignedIn() && isValidId(reviewId) && existing().isPublic == true;
+      allow list: if isSignedIn() && existing().isPublic == true;
+
+      allow create: if isSignedIn() &&
+                       isValidId(reviewId) &&
+                       incoming().customerId == request.auth.uid &&
+                       incoming().bookingId == reviewId &&
+                       incoming().isPublic == true &&
+                       incoming().keys().hasAll([
+                         'bookingId', 'providerId', 'customerId', 'customerName',
+                         'rating', 'comment', 'isPublic', 'createdAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'bookingId', 'providerId', 'customerId', 'customerName',
+                         'rating', 'comment', 'photoBase64', 'isPublic', 'createdAt'
+                       ]) &&
+                       isValidReview(incoming()) &&
+                       exists(/databases/$(database)/documents/bookings/$(reviewId)) &&
+                       get(/databases/$(database)/documents/bookings/$(reviewId)).data.customerId == request.auth.uid &&
+                       get(/databases/$(database)/documents/bookings/$(reviewId)).data.providerId == incoming().providerId &&
+                       get(/databases/$(database)/documents/bookings/$(reviewId)).data.status == 'completed';
+
+      allow update, delete: if false;
+    }
+  }
+}
